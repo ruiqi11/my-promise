@@ -19,6 +19,13 @@ class MyPromise {
 
     // 修改状态，并执行成功回调
     let resolve = (value) => {
+
+      // resolve
+      if (value instanceof Promise) {
+        // 递归解析 
+        return value.then(resolve, reject)
+      }
+
       // 只有状态是等待，才执行状态修改
       if (this.status === PENDING) {
         // 状态修改为成功，并保存值
@@ -103,6 +110,69 @@ class MyPromise {
       }
     })
     return promise2
+  }
+
+  static resolve(data) {
+    return new Promise((resolve, reject) => {
+      resolve(data);
+    })
+  }
+
+  static reject(reason) {
+    return new Promise((resolve, reject) => {
+      reject(reason);
+    })
+  }
+
+  catch (errCallback) {
+    return this.then(null, errCallback)
+  } finally(callback) {
+    return this.then((value) => {
+      return Promise.resolve(callback()).then(() => value)
+    }, (reason) => {
+      return Promise.resolve(callback()).then(() => { throw reason })
+    })
+  }
+
+  static all(values) {
+    if (!Array.isArray(values)) {
+      const type = typeof values;
+      return new TypeError(`TypeError: ${type} ${values} is not iterable`)
+    }
+
+    return new Promise((resolve, reject) => {
+      let resultArr = [];
+      let orderIndex = 0;
+      const processResultByKey = (value, index) => {
+        resultArr[index] = value;
+        if (++orderIndex === values.length) {
+          resolve(resultArr)
+        }
+      }
+      for (let i = 0; i < values.length; i++) {
+        let value = values[i];
+        if (value && typeof value.then === 'function') {
+          value.then((value) => {
+            processResultByKey(value, i);
+          }, reject);
+        } else {
+          processResultByKey(value, i);
+        }
+      }
+    });
+  }
+
+  static race(promises) {
+    return new Promise((resolve, reject) => {
+      for (let i = 0; i < promises.length; i++) {
+        let val = promises[i];
+        if (val && typeof val.then === 'function') {
+          val.then(resolve, reject);
+        } else {
+          resolve(val)
+        }
+      }
+    });
   }
 }
 
